@@ -5,22 +5,22 @@
     <artifactId>gaps-client</artifactId>
     <packaging>jar</packaging>
     <version>0.0-SNAPSHOT</version>
-    <dependencies><!--
+    <dependencies>
+        <!-- https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit -->
+        <dependency>
+            <groupId>org.eclipse.jgit</groupId>
+            <artifactId>org.eclipse.jgit</artifactId>
+            <version>6.0.0.202111291000-r</version>
+        </dependency>
         <dependency>
             <groupId>com.github.users.ravn.gaps</groupId>
             <artifactId>gaps-processor</artifactId>
             <version>0.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
-        <!- - https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit -->
-        <dependency>
-            <groupId>org.eclipse.jgit</groupId>
-            <artifactId>org.eclipse.jgit</artifactId>
-            <version>6.0.0.202111291000-r</version>
-        </dependency>
     </dependencies>
 
-    <name>Git As Plain Source</name>
+    <name>Git As Plain Source - client</name>
 
     <build>
         <plugins>
@@ -46,6 +46,7 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
+                    <showWarnings>true</showWarnings>
                 </configuration>
             </plugin>
         </plugins>
