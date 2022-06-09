@@ -2,6 +2,7 @@ package demo;
 
 import gaps.Gaps;
 import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -25,11 +26,11 @@ public class Main {
         System.out.println(repository.getFullBranch());
         StoredConfig config = repository.getConfig();
         System.out.println(config);
-        var here = repository.getWorkTree();
+        File here = repository.getWorkTree();
         System.out.println(here);
-        var head = repository.resolve(Constants.HEAD);
+        ObjectId head = repository.resolve(Constants.HEAD);
         System.out.println(head);
-        var revWalk = new RevWalk(repository);
+        RevWalk revWalk = new RevWalk(repository);
         RevCommit revCommit = revWalk.parseCommit(head);
         System.out.println(revCommit);
         System.out.println(new Date(revCommit.getCommitTime() * 1000L));
