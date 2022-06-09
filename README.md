@@ -21,3 +21,4 @@ Links:
 
 * <https://cloudogu.com/en/blog/Java-Annotation-Processors_1-Intro>
 * <https://github.com/pellaton/spring-configuration-validation-processor>
+* <https://www.baeldung.com/java-annotation-processing-builder>

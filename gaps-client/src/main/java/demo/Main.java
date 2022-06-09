@@ -15,9 +15,9 @@ import java.util.Date;
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        FileRepositoryBuilder builder = new FileRepositoryBuilder();
         //Repository repository = builder.setGitDir(new File("/Users/ravn/git/gaps/src/main/java/demo"))
-        Repository repository = builder.setGitDir(new File(System.getProperty("user.home"),"git/gaps/.git"))
+        Repository repository = new FileRepositoryBuilder()
+                .setGitDir(new File(System.getProperty("user.home"),"git/gaps/.git"))
                 .readEnvironment() // scan environment GIT_* variables
                 .findGitDir() // scan up the file system tree
                 .build();

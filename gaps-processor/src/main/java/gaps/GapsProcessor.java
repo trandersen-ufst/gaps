@@ -17,6 +17,7 @@ public class GapsProcessor extends AbstractProcessor {
         for (TypeElement annotation : annotations) {
             for (var element : roundEnv.getElementsAnnotatedWith(annotation)) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, ">>> found @Gaps at " + element);
+                // FIXME:  Generate source and write to disk.
             }
         }
         return true;
