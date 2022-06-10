@@ -92,28 +92,28 @@ public class GapsProcessor extends AbstractProcessor {
                             .build();
 
                     FieldSpec gitCommitterDate = FieldSpec.builder(java.util.Date.class, "GIT_COMMITTER_DATE")
-                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .addJavadoc("$L", new Date(revCommit.getCommitTime() * 1000L))
                             .initializer("new Date($L * 1000L)", revCommit.getCommitTime())
                             .build();
 
                     FieldSpec gitAuthorNameField = FieldSpec.builder(String.class, "GIT_AUTHOR_NAME")
-                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .initializer("$S", revCommit.getAuthorIdent().getName())
                             .build();
 
                     FieldSpec gitAuthorDateField = FieldSpec.builder(String.class, "GIT_AUTHOR_DATE")
-                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .initializer("$S", revCommit.getAuthorIdent().getWhen())
                             .build();
 
                     FieldSpec gitAuthorEmailField = FieldSpec.builder(String.class, "GIT_AUTHOR_EMAIL")
-                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .initializer("$S", revCommit.getAuthorIdent().getEmailAddress())
                             .build();
 
                     FieldSpec gitFullMessageField = FieldSpec.builder(String.class, "GIT_MESSAGE")
-                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .initializer("$S", revCommit.getFullMessage())
                             .build();
 
@@ -131,9 +131,9 @@ public class GapsProcessor extends AbstractProcessor {
                             .addFileComment("$L", "Automatically generated.  Do not edit!")
                             .build();
 
-                    try (var ensureRepositoryClosed = repository;
-                         Writer builderWriter = builderFile.openWriter()) {
+                    try (Writer builderWriter = builderFile.openWriter()) {
                         javaFile.writeTo(builderWriter);
+                        revWalk.dispose();
                     }
                 } catch (IOException | URISyntaxException e) {
                     throw new RuntimeException(e); // just fail the build.
