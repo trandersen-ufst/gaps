@@ -1,7 +1,9 @@
 package gaps;
 
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
@@ -28,7 +30,9 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @SupportedAnnotationTypes("gaps.Gaps")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
@@ -91,7 +95,7 @@ public class GapsProcessor extends AbstractProcessor {
 
                     // We need to use the builder for the constants to be able to set their initializers.  This code is still
                     // rather naive.  There might be better ways to express this.
-                    
+
                     // $S means string variable, $L means literal.
 
                     FieldSpec gitBranchField = FieldSpec.builder(String.class, "GIT_BRANCH")
@@ -102,7 +106,7 @@ public class GapsProcessor extends AbstractProcessor {
                     FieldSpec gitCommitterDate = FieldSpec.builder(java.util.Date.class, "GIT_COMMITTER_DATE")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .addJavadoc("$L", new Date(revCommit.getCommitTime() * 1000L))
-                            .initializer("new Date($L * 1000L)", revCommit.getCommitTime()) 
+                            .initializer("new Date($L * 1000L)", revCommit.getCommitTime())
                             .build();
 
                     FieldSpec gitAuthorNameField = FieldSpec.builder(String.class, "GIT_AUTHOR_NAME")
@@ -125,19 +129,23 @@ public class GapsProcessor extends AbstractProcessor {
                             .initializer("$S", revCommit.getFullMessage())
                             .build();
 
-                    // FIXME:  This should be a map from remote name to URL.
-
                     Set<String> remoteNames = repository.getRemoteNames();
-                    String firstRemote = remoteNames.stream().findFirst().get();
-
-                    // get URL for origin, https://stackoverflow.com/a/38062680/18619318
                     var config = repository.getConfig();
-                    var remoteURL = config.getString("remote", firstRemote, "url");
 
-                    FieldSpec gitRemoteField = FieldSpec.builder(String.class, "GIT_REMOTE")
+                    // generate the _inside_ of the Map.of("..."), by flattening (name,url) pairs.
+                    // get URL for remote name: https://stackoverflow.com/a/38062680/18619318
+                    var remotesCodeBlock = "Map.of(\"" + remoteNames.stream() // API limit 5.
+                            .flatMap(name -> List.of(name, config.getString("remote", name, "url")).stream())
+                            .collect(Collectors.joining("\",\""))
+                            + "\")";
+
+                    FieldSpec gitRemoteField = FieldSpec.builder(ParameterizedTypeName.get(
+                            ClassName.get("java.util", "Map"),
+                            ClassName.get("java.lang", "String"),
+                            ClassName.get("java.lang", "String")), "GIT_REMOTES")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
-                            .initializer("$S", remoteURL)
-                            .addJavadoc("$S", firstRemote)
+                            .initializer("$L", remotesCodeBlock)
+                            .addJavadoc("Remote names:  $S", remoteNames)
                             .build();
 
                     TypeSpec helloWorld = TypeSpec.classBuilder(gapsClassName)
