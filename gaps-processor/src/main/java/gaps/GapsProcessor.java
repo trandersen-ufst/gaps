@@ -91,6 +91,8 @@ public class GapsProcessor extends AbstractProcessor {
                     RevWalk revWalk = new RevWalk(repository);
                     RevCommit revCommit = revWalk.parseCommit(head);
 
+                    var sha1 = revCommit.getName();
+
                     // Generate Java source using https://github.com/square/javapoet
 
                     // We need to use the builder for the constants to be able to set their initializers.  This code is still
@@ -101,6 +103,11 @@ public class GapsProcessor extends AbstractProcessor {
                     FieldSpec gitBranchField = FieldSpec.builder(String.class, "GIT_BRANCH")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                             .initializer("$S", repository.getBranch())
+                            .build();
+
+                    FieldSpec gitSha1Field = FieldSpec.builder(String.class, "GIT_SHA1")
+                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                            .initializer("$S", sha1)
                             .build();
 
                     FieldSpec gitCommitterDate = FieldSpec.builder(java.util.Date.class, "GIT_COMMITTER_DATE")
@@ -127,6 +134,7 @@ public class GapsProcessor extends AbstractProcessor {
                     FieldSpec gitFullMessageField = FieldSpec.builder(String.class, "GIT_MESSAGE")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .initializer("$S", revCommit.getFullMessage())
+                            .addJavadoc("Commit message from $L", sha1)
                             .build();
 
                     Set<String> remoteNames = repository.getRemoteNames();
@@ -140,9 +148,9 @@ public class GapsProcessor extends AbstractProcessor {
                             + "\")";
 
                     FieldSpec gitRemoteField = FieldSpec.builder(ParameterizedTypeName.get(
-                            ClassName.get("java.util", "Map"),
-                            ClassName.get("java.lang", "String"),
-                            ClassName.get("java.lang", "String")), "GIT_REMOTES")
+                                    ClassName.get("java.util", "Map"),
+                                    ClassName.get("java.lang", "String"),
+                                    ClassName.get("java.lang", "String")), "GIT_REMOTES")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .initializer("$L", remotesCodeBlock)
                             .addJavadoc("Remote names:  $S", remoteNames)
@@ -150,7 +158,9 @@ public class GapsProcessor extends AbstractProcessor {
 
                     TypeSpec helloWorld = TypeSpec.classBuilder(gapsClassName)
                             .addModifiers(Modifier.PUBLIC)
+                            .addJavadoc("Automatically generated at compile time from git.")
                             .addField(gitBranchField)
+                            .addField(gitSha1Field)
                             .addField(gitCommitterDate)
                             .addField(gitAuthorNameField)
                             .addField(gitAuthorDateField)
