@@ -42,7 +42,7 @@ public class GapsProcessor extends AbstractProcessor {
             for (Element element : elements) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, ">>> found @Gaps at " + element);
                 try {
-                    // The Baeldung tutorial did it this way.
+                    // The Baeldung tutorial did it roughly this way.  Can probably be much nicer.
                     String fullClassName = ((TypeElement) element).getQualifiedName().toString();
 
                     int lastDotInClassName = fullClassName.lastIndexOf('.');
@@ -67,8 +67,10 @@ public class GapsProcessor extends AbstractProcessor {
                     JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(fullGapsClassName);
 
                     // We need _some_ way to locate the git repository in the file system.
-                    // The annotation processor API hides this very well, so we just hope
-                    // that the current classloader points somewhere inside the repository.
+                    // The annotation processor API hides these details _very_ well, so we just hope
+                    // that the current classloader now that we are compiling to a target-folder inside the repository,
+                    // points to somewhere inside the repository. The proper way is still to get metadata for
+                    // the class being compiled, but could not find a way to do so.
                     // This was found in https://stackoverflow.com/q/25192381/18619318 comment
 
                     URL resource = this.getClass().getClassLoader().getResource(".");
@@ -76,15 +78,21 @@ public class GapsProcessor extends AbstractProcessor {
                     Path somewhereInGitRepository = Paths.get(resource.toURI());
 
                     Repository repository = new FileRepositoryBuilder()
-                            .findGitDir(somewhereInGitRepository.toFile()) // scan up the file system tree
+                            .findGitDir(somewhereInGitRepository.toFile()) // scans towards the root of the file system
                             .build();
 
-                    // Found by experimentation.
+                    // FIXME:  Found by experimentation.  Rather slow.  Perhaps the information can be found faster?
+
                     ObjectId head = repository.resolve(Constants.HEAD);
                     RevWalk revWalk = new RevWalk(repository);
                     RevCommit revCommit = revWalk.parseCommit(head);
 
                     // Generate Java source using https://github.com/square/javapoet
+
+                    // We need to use the builder for the constants to be able to set their initializers.  This code is still
+                    // rather naive.  There might be better ways to express this.
+                    
+                    // $S means string variable, $L means literal.
 
                     FieldSpec gitBranchField = FieldSpec.builder(String.class, "GIT_BRANCH")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -94,7 +102,7 @@ public class GapsProcessor extends AbstractProcessor {
                     FieldSpec gitCommitterDate = FieldSpec.builder(java.util.Date.class, "GIT_COMMITTER_DATE")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .addJavadoc("$L", new Date(revCommit.getCommitTime() * 1000L))
-                            .initializer("new Date($L * 1000L)", revCommit.getCommitTime())
+                            .initializer("new Date($L * 1000L)", revCommit.getCommitTime()) 
                             .build();
 
                     FieldSpec gitAuthorNameField = FieldSpec.builder(String.class, "GIT_AUTHOR_NAME")
@@ -117,6 +125,21 @@ public class GapsProcessor extends AbstractProcessor {
                             .initializer("$S", revCommit.getFullMessage())
                             .build();
 
+                    // FIXME:  This should be a map from remote name to URL.
+
+                    Set<String> remoteNames = repository.getRemoteNames();
+                    String firstRemote = remoteNames.stream().findFirst().get();
+
+                    // get URL for origin, https://stackoverflow.com/a/38062680/18619318
+                    var config = repository.getConfig();
+                    var remoteURL = config.getString("remote", firstRemote, "url");
+
+                    FieldSpec gitRemoteField = FieldSpec.builder(String.class, "GIT_REMOTE")
+                            .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
+                            .initializer("$S", remoteURL)
+                            .addJavadoc("$S", firstRemote)
+                            .build();
+
                     TypeSpec helloWorld = TypeSpec.classBuilder(gapsClassName)
                             .addModifiers(Modifier.PUBLIC)
                             .addField(gitBranchField)
@@ -125,6 +148,7 @@ public class GapsProcessor extends AbstractProcessor {
                             .addField(gitAuthorDateField)
                             .addField(gitAuthorEmailField)
                             .addField(gitFullMessageField)
+                            .addField(gitRemoteField)
                             .build();
 
                     JavaFile javaFile = JavaFile.builder(packageName, helloWorld)
