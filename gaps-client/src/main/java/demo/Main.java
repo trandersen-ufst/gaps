@@ -12,7 +12,7 @@ import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import java.io.File;
 import java.util.Date;
 
-@Gaps
+@Gaps // This triggers the generation of MainGaps.
 public class Main {
 
     public static void main(String[] args) throws Exception {
@@ -20,6 +20,7 @@ public class Main {
         System.out.println(MainGaps.GIT_AUTHOR_EMAIL);
         System.out.println(MainGaps.GIT_AUTHOR_DATE);
         System.out.println(MainGaps.GIT_MESSAGE);
+        MainGaps.GIT_REMOTES.forEach((k,v) -> System.out.println(k + " -> " + v));
     }
 
 }
