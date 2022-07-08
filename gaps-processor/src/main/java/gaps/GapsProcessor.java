@@ -73,7 +73,7 @@ public class GapsProcessor extends AbstractProcessor {
                     // We need _some_ way to locate the git repository in the file system.
                     // The annotation processor API hides these details _very_ well, so we just hope
                     // that the current classloader now that we are compiling to a target-folder inside the repository,
-                    // points to somewhere inside the repository. The proper way is still to get metadata for
+                    // actually _points_ to somewhere inside the repository. The proper way is still to get metadata for
                     // the class being compiled, but could not find a way to do so.
                     // This was found in https://stackoverflow.com/q/25192381/18619318 comment
 
@@ -93,21 +93,23 @@ public class GapsProcessor extends AbstractProcessor {
 
                     var sha1 = revCommit.getName();
 
-                    // Generate Java source using https://github.com/square/javapoet
+                    // -- Generate Java source using https://github.com/square/javapoet
 
                     // We need to use the builder for the constants to be able to set their initializers.  This code is still
                     // rather naive.  There might be better ways to express this.
 
-                    // $S means string variable, $L means literal.
+                    // $S means quoted string variable, $L means literal value.
 
                     FieldSpec gitBranchField = FieldSpec.builder(String.class, "GIT_BRANCH")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                             .initializer("$S", repository.getBranch())
+                            .addJavadoc("branch name if HEAD is on branch, sha1 if detached HEAD")
                             .build();
 
                     FieldSpec gitSha1Field = FieldSpec.builder(String.class, "GIT_SHA1")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                             .initializer("$S", sha1)
+                            .addJavadoc("SHA1 of commit, if available.  Can be used to uniquely identify commit.")
                             .build();
 
                     FieldSpec gitCommitterDate = FieldSpec.builder(java.util.Date.class, "GIT_COMMITTER_DATE")
@@ -119,6 +121,7 @@ public class GapsProcessor extends AbstractProcessor {
                     FieldSpec gitAuthorNameField = FieldSpec.builder(String.class, "GIT_AUTHOR_NAME")
                             .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                             .initializer("$S", revCommit.getAuthorIdent().getName())
+                            .addJavadoc("Full name of commit author.")
                             .build();
 
                     FieldSpec gitAuthorDateField = FieldSpec.builder(String.class, "GIT_AUTHOR_DATE")
@@ -142,10 +145,14 @@ public class GapsProcessor extends AbstractProcessor {
 
                     // generate the _inside_ of the Map.of("..."), by flattening (name,url) pairs.
                     // get URL for remote name: https://stackoverflow.com/a/38062680/18619318
-                    var remotesCodeBlock = "Map.of(\"" + remoteNames.stream() // API limit 5.
-                            .flatMap(name -> List.of(name, config.getString("remote", name, "url")).stream())
-                            .collect(Collectors.joining("\",\""))
-                            + "\")";
+                    var quote = "\"";
+                    var remotesCodeBlock = "Map.of(\n" + quote + remoteNames.stream()
+                            .limit(5) // Map.of(...) API has limit 5.
+                            .flatMap(
+                                    name -> List.of(name, config.getString("remote", name, "url")).stream()
+                            )
+                            .collect(Collectors.joining(quote + ",\n" + quote))
+                            + quote + ")";
 
                     FieldSpec gitRemoteField = FieldSpec.builder(ParameterizedTypeName.get(
                                     ClassName.get("java.util", "Map"),
@@ -156,7 +163,7 @@ public class GapsProcessor extends AbstractProcessor {
                             .addJavadoc("Remote names:  $S", remoteNames)
                             .build();
 
-                    TypeSpec helloWorld = TypeSpec.classBuilder(gapsClassName)
+                    TypeSpec gapsTypeSpec = TypeSpec.classBuilder(gapsClassName)
                             .addModifiers(Modifier.PUBLIC)
                             .addJavadoc("Automatically generated at compile time from git.")
                             .addField(gitBranchField)
@@ -169,16 +176,17 @@ public class GapsProcessor extends AbstractProcessor {
                             .addField(gitRemoteField)
                             .build();
 
-                    JavaFile javaFile = JavaFile.builder(packageName, helloWorld)
-                            .addFileComment("$L", "Automatically generated.  Do not edit!")
+                    JavaFile javaFile = JavaFile.builder(packageName, gapsTypeSpec)
+                            .addFileComment("$L", "Automatically generated.  Do not edit!  Use UTF-8 encoding for sources.")
+                            .skipJavaLangImports(true)
                             .build();
 
                     try (Writer builderWriter = builderFile.openWriter()) {
                         javaFile.writeTo(builderWriter);
-                        revWalk.dispose();
+                        revWalk.dispose();  // appears to be very necessary.
                     }
                 } catch (IOException | URISyntaxException e) {
-                    throw new RuntimeException(e); // just fail the build.
+                    throw new RuntimeException(e); // just fail the build if anything goes wrong.
                 }
             }
         }
