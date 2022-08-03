@@ -30,12 +30,13 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
-import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @SupportedAnnotationTypes("gaps.Gaps")
-@SupportedSourceVersion(SourceVersion.RELEASE_11)
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
 @com.google.auto.service.AutoService(Processor.class)
 public class GapsProcessor extends AbstractProcessor {
 
@@ -58,7 +59,7 @@ public class GapsProcessor extends AbstractProcessor {
                         packageName = fullClassName.substring(0, lastDotInClassName);
                         className = fullClassName.substring(lastDotInClassName + 1);
                     } else {
-                        packageName = null;
+                        packageName = "";  // not tested yet
                         className = fullClassName;
                     }
 
@@ -79,7 +80,7 @@ public class GapsProcessor extends AbstractProcessor {
 
                     URL resource = this.getClass().getClassLoader().getResource(".");
 
-                    Path somewhereInGitRepository = Paths.get(resource.toURI());
+                    Path somewhereInGitRepository = Paths.get(Objects.requireNonNull(resource).toURI());
 
                     Repository repository = new FileRepositoryBuilder()
                             .findGitDir(somewhereInGitRepository.toFile()) // scans towards the root of the file system
@@ -91,7 +92,7 @@ public class GapsProcessor extends AbstractProcessor {
                     RevWalk revWalk = new RevWalk(repository);
                     RevCommit revCommit = revWalk.parseCommit(head);
 
-                    var sha1 = revCommit.getName();
+                    String sha1 = revCommit.getName();
 
                     // -- Generate Java source using https://github.com/square/javapoet
 
@@ -141,18 +142,21 @@ public class GapsProcessor extends AbstractProcessor {
                             .build();
 
                     Set<String> remoteNames = repository.getRemoteNames();
-                    var config = repository.getConfig();
+                    org.eclipse.jgit.lib.StoredConfig config = repository.getConfig();
 
                     // generate the _inside_ of the Map.of("..."), by flattening (name,url) pairs.
                     // get URL for remote name: https://stackoverflow.com/a/38062680/18619318
-                    var quote = "\"";
-                    var remotesCodeBlock = "Map.of(\n" + quote + remoteNames.stream()
+                    String quote = "\"";
+                    String remotesCodeBlock = "new java.util.HashMap<String,String> () {{\n" + remoteNames.stream()
                             .limit(5) // Map.of(...) API has limit 5.
                             .flatMap(
-                                    name -> List.of(name, config.getString("remote", name, "url")).stream()
+                                    name -> Stream.of(
+                                            "put(" + quote + name + quote + "," +
+                                                    quote + config.getString("remote", name, "url") + quote + ");"
+                                    )
                             )
-                            .collect(Collectors.joining(quote + ",\n" + quote))
-                            + quote + ")";
+                            .collect(Collectors.joining("\n"))
+                            + "\n}}";
 
                     FieldSpec gitRemoteField = FieldSpec.builder(ParameterizedTypeName.get(
                                     ClassName.get("java.util", "Map"),
