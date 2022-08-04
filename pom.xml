@@ -18,6 +18,8 @@
     <distributionManagement>
         <repository>
             <id>github</id>
+            <name>GitHub trandersen-ufst Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/trandersen-ufst/gaps</url>
         </repository>
     </distributionManagement>
 
